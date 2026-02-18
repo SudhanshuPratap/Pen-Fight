@@ -5,6 +5,7 @@
 //  Created by Sudhanshu on 17/02/26.
 //
 import SpriteKit
+
 struct PhysicsCategory {
     static let none: UInt32 = 0
     static let pen: UInt32 = 0b1
@@ -16,7 +17,6 @@ class GameScene: SKScene {
     private var arenaRect: CGRect = .zero
     private var selectedPen: SKNode?
     private var touchStartPoint: CGPoint?
-
     
     override func didMove(to view: SKView) {
         backgroundColor = .black
@@ -24,21 +24,26 @@ class GameScene: SKScene {
         
         setupArena()
         setupTopWall()
-        spawnPen()
+        view.showsPhysics = true
 
+        // Spawn two pens (duel setup)
+        spawnPen(at: CGPoint(x: arenaRect.midX, y: arenaRect.midY + 80))
+        spawnPen(at: CGPoint(x: arenaRect.midX, y: arenaRect.midY - 80))
     }
+    
+    // MARK: - Touch Handling
+    
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
-        
         let location = touch.location(in: self)
         
         if let node = nodes(at: location).first?.parent,
            node.physicsBody?.categoryBitMask == PhysicsCategory.pen {
-            
             selectedPen = node
             touchStartPoint = location
         }
     }
+    
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first,
               let start = touchStartPoint,
@@ -48,30 +53,38 @@ class GameScene: SKScene {
         
         let dx = end.x - start.x
         let dy = end.y - start.y
-
         let distance = sqrt(dx * dx + dy * dy)
-
+        
+        guard distance > 0 else { return }
+        
         let direction = CGVector(dx: dx / distance, dy: dy / distance)
+        
+        let maxForce: CGFloat = 35
+        let forceMagnitude = min(distance * 0.14, maxForce)
 
-        let maxForce: CGFloat = 40
-        let forceMagnitude = min(distance * 0.1, maxForce)
-
-        let impulse = CGVector(dx: direction.dx * forceMagnitude,
-                               dy: direction.dy * forceMagnitude)
-
-        pen.physicsBody?.applyImpulse(impulse)
-
+        
+        let impulse = CGVector(
+            dx: direction.dx * forceMagnitude,
+            dy: direction.dy * forceMagnitude
+        )
+        
+        // 🔥 Realistic torque application
+        pen.physicsBody?.applyImpulse(impulse, at: start)
         
         selectedPen = nil
         touchStartPoint = nil
     }
+    
     override func update(_ currentTime: TimeInterval) {
         checkRingOut()
     }
-
+    
+    // MARK: - Arena Setup
+    
     private func setupArena() {
-        let width = size.width * 0.8
-        let height = size.height * 0.6
+        let width = size.width * 0.9
+        let height = size.height * 0.7
+
         
         let originX = (size.width - width) / 2
         let originY = (size.height - height) / 2
@@ -81,7 +94,7 @@ class GameScene: SKScene {
         let arenaNode = SKShapeNode(rect: arenaRect)
         arenaNode.strokeColor = .white
         arenaNode.lineWidth = 4
-        arenaNode.fillColor = .clear
+        arenaNode.fillColor = SKColor(white: 0.15, alpha: 1) // Desk surface
         
         addChild(arenaNode)
     }
@@ -91,50 +104,62 @@ class GameScene: SKScene {
         let topRight = CGPoint(x: arenaRect.maxX, y: arenaRect.maxY)
         
         let wallBody = SKPhysicsBody(edgeFrom: topLeft, to: topRight)
-        wallBody.friction = 0.2
-        wallBody.restitution = 0.8
+        wallBody.friction = 0.6
+        wallBody.restitution = 0.1
+        
+        wallBody.categoryBitMask = PhysicsCategory.wall
+        wallBody.collisionBitMask = PhysicsCategory.pen
+        wallBody.contactTestBitMask = PhysicsCategory.pen
         
         let wallNode = SKNode()
         wallNode.physicsBody = wallBody
         
         addChild(wallNode)
-        wallBody.categoryBitMask = PhysicsCategory.wall
-        wallBody.collisionBitMask = PhysicsCategory.pen
-        wallBody.contactTestBitMask = PhysicsCategory.pen
-
     }
     
-    private func spawnPen() {
+    // MARK: - Pen
+    
+    private func spawnPen(at position: CGPoint) {
         
-        let penLength: CGFloat = 120
-        let penHeight: CGFloat = 20
+        let penLength: CGFloat = 90
+        let penHeight: CGFloat = 16
         
         let penNode = SKNode()
-        penNode.position = CGPoint(x: arenaRect.midX, y: arenaRect.midY)
+        penNode.position = position
         
-        // Main body
-        let bodyNode = SKShapeNode(rectOf: CGSize(width: penLength, height: penHeight), cornerRadius: 10)
-        bodyNode.fillColor = SKColor.white
-        bodyNode.strokeColor = .clear
-        bodyNode.position = .zero
-        // Shadow
-        let shadowNode = SKShapeNode(rectOf: CGSize(width: penLength, height: penHeight), cornerRadius: 10)
+        // MARK: Shadow
+        
+        let shadowNode = SKShapeNode(
+            rectOf: CGSize(width: penLength, height: penHeight),
+            cornerRadius: penHeight / 2
+        )
         shadowNode.fillColor = .black
         shadowNode.strokeColor = .clear
-        shadowNode.alpha = 0.25
-        shadowNode.position = CGPoint(x: 0, y: -6)
+        shadowNode.alpha = 0.18
+        shadowNode.position = CGPoint(x: 0, y: -4)
         shadowNode.zPosition = -1
-
         penNode.addChild(shadowNode)
-
-
+        
+        // MARK: Visual Body (Capsule Look)
+        
+        let bodyNode = SKShapeNode(
+            rectOf: CGSize(width: penLength, height: penHeight),
+            cornerRadius: penHeight / 2
+        )
+        bodyNode.fillColor = .white
+        bodyNode.strokeColor = .darkGray
+        bodyNode.lineWidth = 1
         penNode.addChild(bodyNode)
         
-        // Random cap side
-        let isCapOnLeft = Bool.random()
+        // MARK: Random Cap
         
-        let capWidth: CGFloat = 30
-        let capNode = SKShapeNode(rectOf: CGSize(width: capWidth, height: penHeight), cornerRadius: 8)
+        let isCapOnLeft = Bool.random()
+        let capWidth: CGFloat = 23
+        
+        let capNode = SKShapeNode(
+            rectOf: CGSize(width: capWidth, height: penHeight),
+            cornerRadius: penHeight / 2
+        )
         capNode.fillColor = .blue
         capNode.strokeColor = .clear
         
@@ -146,46 +171,53 @@ class GameScene: SKScene {
         
         penNode.addChild(capNode)
         
-        // Physics body with shifted center of mass
-        let massShift: CGFloat = 15
-        let centerShift = isCapOnLeft ? -massShift : massShift
+        // MARK: Capsule Physics (Proper)
         
-        penNode.physicsBody = SKPhysicsBody(
-            rectangleOf: CGSize(width: penLength, height: penHeight),
-            center: CGPoint(x: centerShift, y: 0)
+        let massShift: CGFloat = 18
+        let shift = isCapOnLeft ? -massShift : massShift
+        
+        let coreRect = SKPhysicsBody(
+            rectangleOf: CGSize(width: penLength - penHeight, height: penHeight),
+            center: CGPoint(x: shift, y: 0)
         )
         
-        penNode.physicsBody?.mass = 0.4
-        penNode.physicsBody?.friction = 0.2
-        penNode.physicsBody?.restitution = 0.8
-        penNode.physicsBody?.linearDamping = 0.1
-        penNode.physicsBody?.angularDamping = 0.4
-        penNode.physicsBody?.allowsRotation = true
+        let leftCircle = SKPhysicsBody(
+            circleOfRadius: penHeight / 2,
+            center: CGPoint(x: -(penLength - penHeight)/2 + shift, y: 0)
+        )
         
-        penNode.physicsBody?.categoryBitMask = PhysicsCategory.pen
-        penNode.physicsBody?.collisionBitMask = PhysicsCategory.wall
-        penNode.physicsBody?.contactTestBitMask = PhysicsCategory.wall
+        let rightCircle = SKPhysicsBody(
+            circleOfRadius: penHeight / 2,
+            center: CGPoint(x: (penLength - penHeight)/2 + shift, y: 0)
+        )
+        
+        let compoundBody = SKPhysicsBody(bodies: [coreRect, leftCircle, rightCircle])
+        
+        compoundBody.mass = 0.22
+        compoundBody.friction = 0.8
+        compoundBody.restitution = 0.1
+        compoundBody.linearDamping = 0.25
+        compoundBody.angularDamping = 0.5
+        compoundBody.allowsRotation = true
+        
+        compoundBody.categoryBitMask = PhysicsCategory.pen
+        compoundBody.collisionBitMask =
+            PhysicsCategory.wall | PhysicsCategory.pen
+        compoundBody.contactTestBitMask =
+            PhysicsCategory.wall | PhysicsCategory.pen
+        
+        penNode.physicsBody = compoundBody
         
         addChild(penNode)
     }
 
-    private func checkRingOut() {
-        guard let pen = children.first(where: { $0.name == nil && $0.physicsBody?.categoryBitMask == PhysicsCategory.pen }) else { return }
-        
-        if !arenaRect.contains(pen.position) {
-            pen.removeFromParent()
-            showEliminationEffect(at: pen.position)
-        }
-    }
-    private func showEliminationEffect(at position: CGPoint) {
+    
+    private func showEliminationEffect() {
         let label = SKLabelNode(text: "OUT!")
         label.fontSize = 40
         label.fontColor = .red
-        label.position = CGPoint(x: size.width/2, y: size.height/2)
+        label.position = CGPoint(x: size.width / 2, y: size.height / 2)
         label.zPosition = 10
         addChild(label)
     }
-
-
-
 }
