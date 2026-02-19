@@ -4,6 +4,7 @@
 //
 //  Created by Sudhanshu on 17/02/26.
 //
+
 import SpriteKit
 
 struct PhysicsCategory {
@@ -14,31 +15,38 @@ struct PhysicsCategory {
 
 class GameScene: SKScene {
     
+    private var pens: [SKNode] = []
+    private var currentTurnIndex: Int = 0
     private var arenaRect: CGRect = .zero
     private var selectedPen: SKNode?
     private var touchStartPoint: CGPoint?
+    private var isTurnLocked = false
     
     override func didMove(to view: SKView) {
         backgroundColor = .black
         physicsWorld.gravity = .zero
+        physicsWorld.contactDelegate = self
         
         setupArena()
         setupTopWall()
-        view.showsPhysics = true
-
-        // Spawn two pens (duel setup)
+        
+        // Spawn two pens
         spawnPen(at: CGPoint(x: arenaRect.midX, y: arenaRect.midY + 80))
         spawnPen(at: CGPoint(x: arenaRect.midX, y: arenaRect.midY - 80))
+        
+        updateTurnHighlight()
     }
     
     // MARK: - Touch Handling
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if isTurnLocked { return }
         guard let touch = touches.first else { return }
+        
         let location = touch.location(in: self)
         
         if let node = nodes(at: location).first?.parent,
-           node.physicsBody?.categoryBitMask == PhysicsCategory.pen {
+           node == pens[currentTurnIndex] {
             selectedPen = node
             touchStartPoint = location
         }
@@ -54,22 +62,20 @@ class GameScene: SKScene {
         let dx = end.x - start.x
         let dy = end.y - start.y
         let distance = sqrt(dx * dx + dy * dy)
-        
         guard distance > 0 else { return }
         
         let direction = CGVector(dx: dx / distance, dy: dy / distance)
         
-        let maxForce: CGFloat = 35
-        let forceMagnitude = min(distance * 0.14, maxForce)
-
+        let maxForce: CGFloat = 30
+        let forceMagnitude = min(distance * 0.12, maxForce)
         
         let impulse = CGVector(
             dx: direction.dx * forceMagnitude,
             dy: direction.dy * forceMagnitude
         )
         
-        // 🔥 Realistic torque application
         pen.physicsBody?.applyImpulse(impulse, at: start)
+        isTurnLocked = true
         
         selectedPen = nil
         touchStartPoint = nil
@@ -77,14 +83,14 @@ class GameScene: SKScene {
     
     override func update(_ currentTime: TimeInterval) {
         checkRingOut()
+        checkForTurnSwitch()
     }
     
-    // MARK: - Arena Setup
+    // MARK: - Arena
     
     private func setupArena() {
         let width = size.width * 0.9
         let height = size.height * 0.7
-
         
         let originX = (size.width - width) / 2
         let originY = (size.height - height) / 2
@@ -94,7 +100,7 @@ class GameScene: SKScene {
         let arenaNode = SKShapeNode(rect: arenaRect)
         arenaNode.strokeColor = .white
         arenaNode.lineWidth = 4
-        arenaNode.fillColor = SKColor(white: 0.15, alpha: 1) // Desk surface
+        arenaNode.fillColor = SKColor(white: 0.15, alpha: 1)
         
         addChild(arenaNode)
     }
@@ -127,8 +133,7 @@ class GameScene: SKScene {
         let penNode = SKNode()
         penNode.position = position
         
-        // MARK: Shadow
-        
+        // Shadow
         let shadowNode = SKShapeNode(
             rectOf: CGSize(width: penLength, height: penHeight),
             cornerRadius: penHeight / 2
@@ -140,8 +145,7 @@ class GameScene: SKScene {
         shadowNode.zPosition = -1
         penNode.addChild(shadowNode)
         
-        // MARK: Visual Body (Capsule Look)
-        
+        // Body
         let bodyNode = SKShapeNode(
             rectOf: CGSize(width: penLength, height: penHeight),
             cornerRadius: penHeight / 2
@@ -149,10 +153,10 @@ class GameScene: SKScene {
         bodyNode.fillColor = .white
         bodyNode.strokeColor = .darkGray
         bodyNode.lineWidth = 1
+        bodyNode.name = "penBody"
         penNode.addChild(bodyNode)
         
-        // MARK: Random Cap
-        
+        // Random cap
         let isCapOnLeft = Bool.random()
         let capWidth: CGFloat = 23
         
@@ -171,24 +175,19 @@ class GameScene: SKScene {
         
         penNode.addChild(capNode)
         
-        // MARK: Capsule Physics (Proper)
-        
-        let massShift: CGFloat = 18
-        let shift = isCapOnLeft ? -massShift : massShift
-        
+        // Capsule Physics
         let coreRect = SKPhysicsBody(
-            rectangleOf: CGSize(width: penLength - penHeight, height: penHeight),
-            center: CGPoint(x: shift, y: 0)
+            rectangleOf: CGSize(width: penLength - penHeight, height: penHeight)
         )
         
         let leftCircle = SKPhysicsBody(
             circleOfRadius: penHeight / 2,
-            center: CGPoint(x: -(penLength - penHeight)/2 + shift, y: 0)
+            center: CGPoint(x: -(penLength - penHeight)/2, y: 0)
         )
         
         let rightCircle = SKPhysicsBody(
             circleOfRadius: penHeight / 2,
-            center: CGPoint(x: (penLength - penHeight)/2 + shift, y: 0)
+            center: CGPoint(x: (penLength - penHeight)/2, y: 0)
         )
         
         let compoundBody = SKPhysicsBody(bodies: [coreRect, leftCircle, rightCircle])
@@ -196,8 +195,8 @@ class GameScene: SKScene {
         compoundBody.mass = 0.22
         compoundBody.friction = 0.8
         compoundBody.restitution = 0.1
-        compoundBody.linearDamping = 0.25
-        compoundBody.angularDamping = 0.5
+        compoundBody.linearDamping = 0.35
+        compoundBody.angularDamping = 0.6
         compoundBody.allowsRotation = true
         
         compoundBody.categoryBitMask = PhysicsCategory.pen
@@ -208,9 +207,53 @@ class GameScene: SKScene {
         
         penNode.physicsBody = compoundBody
         
+        pens.append(penNode)
         addChild(penNode)
     }
-
+    
+    // MARK: - Turn Logic
+    
+    private func checkForTurnSwitch() {
+        guard pens.count == 2 else { return }
+        
+        let moving = pens.contains { pen in
+            guard let body = pen.physicsBody else { return false }
+            return abs(body.velocity.dx) > 5 ||
+                   abs(body.velocity.dy) > 5 ||
+                   abs(body.angularVelocity) > 0.5
+        }
+        
+        if !moving && isTurnLocked {
+            isTurnLocked = false
+            currentTurnIndex = (currentTurnIndex + 1) % 2
+            updateTurnHighlight()
+        }
+    }
+    
+    private func updateTurnHighlight() {
+        for (index, pen) in pens.enumerated() {
+            if let bodyNode = pen.childNode(withName: "penBody") as? SKShapeNode {
+                if index == currentTurnIndex {
+                    bodyNode.strokeColor = .systemYellow
+                    bodyNode.lineWidth = 3
+                } else {
+                    bodyNode.strokeColor = .darkGray
+                    bodyNode.lineWidth = 1
+                }
+            }
+        }
+    }
+    
+    // MARK: - Ring Out
+    
+    private func checkRingOut() {
+        for node in pens {
+            if !arenaRect.contains(node.position) {
+                node.removeFromParent()
+                showEliminationEffect()
+            }
+        }
+    }
     
     private func showEliminationEffect() {
         let label = SKLabelNode(text: "OUT!")
@@ -219,5 +262,35 @@ class GameScene: SKScene {
         label.position = CGPoint(x: size.width / 2, y: size.height / 2)
         label.zPosition = 10
         addChild(label)
+    }
+}
+
+// MARK: - Physics Contact
+
+extension GameScene: SKPhysicsContactDelegate {
+    
+    func didBegin(_ contact: SKPhysicsContact) {
+        if contact.bodyA.categoryBitMask == PhysicsCategory.pen &&
+           contact.bodyB.categoryBitMask == PhysicsCategory.pen {
+            handlePenImpact()
+        }
+    }
+    
+    private func handlePenImpact() {
+        
+        // Impact pulse
+        for pen in pens {
+            let scaleUp = SKAction.scale(to: 1.05, duration: 0.05)
+            let scaleDown = SKAction.scale(to: 1.0, duration: 0.05)
+            pen.run(SKAction.sequence([scaleUp, scaleDown]))
+        }
+        
+        // Camera shake
+        let shakeAmount: CGFloat = 6
+        let moveLeft = SKAction.moveBy(x: -shakeAmount, y: 0, duration: 0.04)
+        let moveRight = SKAction.moveBy(x: shakeAmount, y: 0, duration: 0.04)
+        let reset = SKAction.moveTo(x: 0, duration: 0)
+        
+        run(SKAction.sequence([moveLeft, moveRight, reset]))
     }
 }
