@@ -9,13 +9,14 @@ A turn-based 2-player physics game built with **SwiftUI** and **SpriteKit** — 
 ---
 
 ## 📋 Table of Contents
+
 - [Overview](#-overview)
 - [Gameplay](#-gameplay)
 - [Core Mechanics](#-core-mechanics)
 - [Architecture](#-architecture)
 - [Technologies](#-technologies)
-- [Setup](#-setup)
-- [Project Goals](#-project-goals)
+- [Setup](#️-running-the-project)
+- [Project Goals](#-project-goal)
 - [Author](#-author)
 - [License](#-license)
 
@@ -56,92 +57,88 @@ Pen Fight brings the nostalgic classroom pen battle to your device with realisti
 
 ### 🔹 Physics Engine (SpriteKit)
 
-The game simulates realistic pen behavior using compound physics bodies:
-┌─────────────────────────────────────┐
-│ PEN STRUCTURE │
-├─────────────────────────────────────┤
-│ ┌─────────────────────────────┐ │
-│ │ MAIN BARREL │ │
-│ │ • Mass: Optimized balance │ │
-│ │ • Friction: Controlled │ │
-│ │ • Angular Damping: Realistic│ │
-│ └─────────────────────────────┘ │
-│ ⬇️ │
-│ ┌─────────────────────────────┐ │
-│ │ CAP │ │
-│ │ • Joint connection to barrel│ │
-│ └─────────────────────────────┘ │
-└─────────────────────────────────────┘
+The game simulates realistic pen behavior using compound physics bodies with two connected components:
 
-text
+| Component | Properties | Purpose |
+|-----------|------------|---------|
+| **Main Barrel** | Optimized mass distribution, controlled surface friction, realistic angular damping | Primary body for movement and collisions |
+| **Cap** | Joint-connected to barrel, secondary collision detection | Adds visual realism and affects spin |
 
 ### 🔹 Impulse System
 
-Players control force application through intuitive touch:
+Players control force application through intuitive touch. The impact location determines the pen's reaction:
 
 | Hit Location | Primary Effect | Gameplay Impact |
 |:------------:|:--------------:|:----------------|
-| **Center** | Linear thrust | Quick pushes, repositioning |
-| **Near Edge** | Torque + rotation | Spin attacks, tricky shots |
-| **Strong Drag** | High impulse | Powerful knockback |
-| **Light Tap** | Gentle nudge | Precision adjustments |
+| 🎯 **Center** | Linear thrust | Quick pushes, repositioning |
+| ⚡ **Near Edge** | Torque + rotation | Spin attacks, tricky shots |
+| 💪 **Strong Drag** | High impulse | Powerful knockback |
+| 👆 **Light Tap** | Gentle nudge | Precision adjustments |
 
 ### 🔹 Collision Detection
-┌─────────────────────────────────────┐
-│ ARENA INTERACTIONS │
-├─────────────────────────────────────┤
-│ • Pen-to-Pen → Bounce + momentum │
-│ • Pen-to-Wall → Energy loss │
-│ • Ring-out → Continuous monitoring
-└─────────────────────────────────────┘
 
-text
+The arena handles three types of physical interactions:
+
+| Interaction Type | Physics Response | Gameplay Significance |
+|-----------------|------------------|----------------------|
+| **Pen-to-Pen** | Bounce with momentum transfer | Direct combat mechanics |
+| **Pen-to-Wall** | Energy loss on impact | Strategic positioning |
+| **Ring-out** | Continuous boundary monitoring | Win condition detection |
 
 ### 🔹 Arena Environment
 
-- **Bounded rectangular playing field**
-- **Optimized friction** for strategic movement
-- **Clear visual boundaries**
+- **Bounded rectangular playing field** with optimized dimensions
+- **Calibrated surface friction** for strategic movement control
+- **Clear visual boundaries** for easy ring-out judgment
 
 ---
 
 ## 🏗 Architecture
 
-The project follows clean architecture principles with clear separation between UI, physics, and game state.
+The project keeps the user interface, game logic, and physics simulation separate for better organization and maintainability.
 
-### Directory Structure
-Pen-Fight/
-├── Sources/
-│ ├── Pen_FightApp.swift # App entry point
-│ ├── Views/
-│ │ ├── MenuView.swift # Start screen
-│ │ ├── GameView.swift # SwiftUI + SpriteKit container
-│ │ ├── ScoreCardView.swift # Score display
-│ │ └── WinnerView.swift # Victory overlay
-│ ├── Game/
-│ │ ├── GameScene.swift # Physics & core gameplay
-│ │ └── GameState.swift # Turn & score management
-│ └── Resources/
-│ └── Assets.xcassets # Icons & visuals
-└── PenFight.swiftpm # Swift Playground package
+```
+Sources/
+ ├── GameScene.swift      // SpriteKit physics & gameplay logic
+ ├── GameState.swift      // Score and turn management
+ ├── GameView.swift       // SwiftUI container for SpriteKit scene
+ ├── MenuView.swift       // Start screen
+ ├── ScoreCardView.swift  // Bottom score display
+ ├── WinnerView.swift     // Match winner overlay
+ └── Pen_FightApp.swift   // App entry point
+```
 
-text
+### 🧩 How It Works
 
-### Key Design Patterns
+| What | Does What | Built With |
+|------|-----------|------------|
+| **Views** | Show screens to player | SwiftUI |
+| **GameScene** | Handles physics, collisions, touch | SpriteKit |
+| **GameState** | Tracks scores, whose turn it is | Swift |
 
-| Pattern | Implementation | Purpose |
-|:--------|:---------------|:--------|
-| **MVVM** | SwiftUI Views + ObservableObject | Clean UI state management |
-| **Observer** | Combine framework | Real-time score updates |
-| **State Machine** | GameState enum | Turn & match flow control |
-| **Delegate** | SKSceneDelegate | Physics-view communication |
+### 🔄 Information Flow
 
-### Data Flow
-User Input → GameScene (Touch) → Physics Simulation → GameState → SwiftUI Views
-↑ ↓
-└─────────────────── Continuous Loop ───────────────────────┘
+```
+Player touches screen → GameScene detects touch
+GameScene applies force to pen → Physics simulates movement
+GameState checks if pen went out → Updates score if needed
+SwiftUI refreshes screen → Shows new score/turn
+Repeat until game ends
+```
 
-text
+### ✨ Simple Example
+
+1. **MenuView** → Player taps "Start"
+2. **GameView** appears → Blue player's turn
+3. **GameScene** detects touch → Pen moves
+4. **GameState** checks if Red pen fell out → Blue gets +1 point
+5. **ScoreCardView** updates → Shows Blue winning
+
+That's it! Three main parts working together:
+
+- 🎨 **Views** = What you see
+- 🎮 **GameScene** = What happens
+- 📊 **GameState** = What's the score
 
 ---
 
@@ -149,106 +146,102 @@ text
 
 ### Core Frameworks
 
-| | | |
-|:---:|:---:|:---:|
-| **SwiftUI** | **SpriteKit** | **Combine** |
-| 100% declarative UI | Physics simulation | Reactive state |
-| **GameplayKit** | **Xcode 15+** | **Swift Playgrounds** |
-| State machines | Primary IDE | iPad/Mac support |
+| Framework | Purpose |
+|:---------:|:-------:|
+| **SwiftUI** | 100% declarative UI |
+| **SpriteKit** | Physics simulation |
+| **Combine** | Reactive state |
+| **GameplayKit** | State machines |
+
+### Development Tools
+
+| Tool | Version |
+|------|---------|
+| Xcode | 15+ |
+| Swift | 5.9 |
+| Swift Playgrounds | iPad/Mac support |
 
 ### Key Features
 
-✅ Zero external dependencies  
-✅ Full offline functionality  
-✅ Adaptive layout (iPhone/iPad/Mac)  
-✅ 60 FPS physics simulation  
-✅ Accessibility support  
+- ✅ Zero external dependencies
+- ✅ Full offline functionality
+- ✅ Adaptive layout (iPhone / iPad / Mac)
+- ✅ 60 FPS physics simulation
+- ✅ Accessibility support
 
 ---
 
-## 🚀 Setup
+## ▶️ Running the Project
 
-### Prerequisites
+### Using Xcode
 
-- **iOS 16.0+** / **iPadOS 16.0+** / **macOS 13.0+**
-- **Xcode 15.0+** (for development)
-- **Swift Playgrounds 4.0+** (for iPad)
+1. Open `PenFight.swiftpm` in Xcode 15 or later
+2. Select an iPhone simulator
+3. Press **Run**
 
-### Installation Options
+### Using Swift Playgrounds (Mac / iPad)
 
-#### Option 1: Xcode (Recommended for Development)
-```bash
-# Clone the repository
-git clone https://github.com/SudhanshuPratap/Pen-Fight.git
+1. Open the `.swiftpm` file
+2. Tap **Run**
 
-# Open in Xcode
-cd Pen-Fight
-open PenFight.swiftpm
+> No internet connection is required.
 
-# Press Cmd+R to run
-Option 2: Swift Playgrounds (iPad/Mac)
-Download the repository as ZIP
+---
 
-Extract and open PenFight.swiftpm
+## 🎯 Project Goal
 
-Tap "Run" to start playing
+This project explores how force application affects motion and rotation in a controlled environment. It focuses on:
 
-Option 3: Direct Download
-Visit Releases
+- Understanding impulse and torque
+- Creating skill-based gameplay mechanics
+- Maintaining clean architecture
+- Delivering a complete interactive experience within three minutes
 
-Download latest .swiftpm package
+The aim was not to create a complex game, but a focused and technically thoughtful one.
 
-Open with preferred IDE
+---
 
-🎯 Project Goals
-Educational Goals
-Physics Understanding — Explore how impulse and torque affect rigid body dynamics
+## 📊 Achievement Metrics
 
-Framework Integration — Master SwiftUI + SpriteKit interoperability
+| Metric | Target | Status |
+|--------|--------|--------|
+| Package Size | 📦 < 5 MB | ✅ Achieved |
+| Performance | ⚡️ 60 FPS | ✅ Achieved |
+| Latency | 🎯 < 100ms | ✅ Achieved |
+| Platform Support | 📱 Universal | ✅ Achieved |
 
-State Management — Implement clean reactive patterns with Combine
+---
 
-Technical Goals
-Clean Architecture — Maintain strict separation of concerns
+## 📊 Project Status
 
-Performance — Achieve consistent 60 FPS with complex physics
+| Phase | Status | Timeline |
+|-------|--------|----------|
+| Core Mechanics | ✅ Complete | v1.0 |
+| UI/UX Polish | ✅ Complete | v1.1 |
+| Multiplayer | 🚧 Planning | v2.0 |
+| AI Opponent | 📝 Research | Future |
 
-Reusability — Create modular components for future projects
+---
 
-Design Goals
-Minimalist UI — Apple-inspired clean interface
+## 👤 Author
 
-Intuitive Controls — Natural drag-and-tap mechanics
-
-Accessibility — VoiceOver and Dynamic Type support
-
-Achievement Metrics
-Metric	Target	Status
-Package Size	📦 < 5 MB	✅ Achieved
-Performance	⚡️ 60 FPS	✅ Achieved
-Latency	🎯 < 100ms	✅ Achieved
-Platform Support	📱 Universal	✅ Achieved
-👤 Author
-Sudhanshu Pratap
+**Sudhanshu Pratap**  
 iOS Developer passionate about physics simulations and game mechanics
 
-https://img.shields.io/badge/GitHub-@SudhanshuPratap-181717?style=flat-square&logo=github
-https://img.shields.io/badge/LinkedIn-Sudhanshu_Pratap-0077B5?style=flat-square&logo=linkedin
+**Specialties:**
 
-Specialties:
+- 🎯 SwiftUI & UIKit Development
+- 🎮 SpriteKit & Game Physics
+- 🥽 ARKit & RealityKit
+- 🏗 Clean Architecture & Design Patterns
 
-🎯 SwiftUI & UIKit Development
+---
 
-🎮 SpriteKit & Game Physics
+## 📄 License
 
-🥽 ARKit & RealityKit
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
-🏗 Clean Architecture & Design Patterns
-
-📄 License
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-text
+```
 MIT License
 
 Copyright (c) 2024 Sudhanshu Pratap
@@ -270,23 +263,24 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-📊 Project Status
-Phase	Status	Timeline
-Core Mechanics	✅ Complete	v1.0
-UI/UX Polish	✅ Complete	v1.1
-Multiplayer	🚧 Planning	v2.0
-AI Opponent	📝 Research	Future
-🙏 Acknowledgments
-Inspiration — Classroom pen fighting games from school days
+```
 
-Physics Guidance — Box2D and SpriteKit documentation
+---
 
-Design Inspiration — Apple's Game Center and traditional board games
+## 🙏 Acknowledgments
+
+- **Inspiration** — Classroom pen fighting games from school days
+- **Physics Guidance** — Box2D and SpriteKit documentation
+- **Design Inspiration** — Apple's Game Center and traditional board games
+
+---
 
 <div align="center">
-⭐ Star this repo if you found it useful!
-Report Bug · Request Feature · Follow Author
 
-Last Updated: March 2024 • Swift 5.9
+⭐ **Star this repo if you found it useful!**
 
-</div> ``
+[Report Bug](../../issues) · [Request Feature](../../issues) · [Follow Author](../../)
+
+*Last Updated: March 2024 • Swift 5.9*
+
+</div>
