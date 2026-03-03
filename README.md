@@ -281,6 +281,6 @@ SOFTWARE.
 
 [Report Bug](../../issues) · [Request Feature](../../issues) · [Follow Author](../../)
 
-*Last Updated: March 2024 • Swift 5.9*
+*Last Updated: March 2026 • Swift 5.9*
 
 </div>
