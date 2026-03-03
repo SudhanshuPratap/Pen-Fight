@@ -1,9 +1,10 @@
 //
 //  GameScene.swift
-//  Pen Fight
+//  
 //
-//  Created by Sudhanshu on 17/02/26.
+//  Created by Sudhanshu on 01/03/26.
 //
+
 
 import SpriteKit
 
@@ -45,9 +46,9 @@ struct GameConstants {
 }
 
 // MARK: - GameScene
-class GameScene: SKScene {
+public class GameScene: SKScene {
 
-    var gameState: GameState?
+    public var gameState: GameState?
 
     private var pens: [SKNode] = []
     private var currentTurnIndex = 0
@@ -61,7 +62,7 @@ class GameScene: SKScene {
 
     // MARK: - Lifecycle
 
-    override func didMove(to view: SKView) {
+    public override func didMove(to view: SKView) {
         backgroundColor = .clear
         physicsWorld.gravity = .zero
         physicsWorld.contactDelegate = self
@@ -71,7 +72,7 @@ class GameScene: SKScene {
         highlightActivePen()
     }
 
-    func resetScene() {
+    public func resetScene() {
         spawnPens()
         highlightActivePen()
     }
@@ -263,7 +264,7 @@ class GameScene: SKScene {
 
     // MARK: - Touch Handling
 
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard !isTurnLocked, !isRoundOver,
               let touch = touches.first else { return }
 
@@ -276,7 +277,7 @@ class GameScene: SKScene {
         }
     }
 
-    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+    public override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first,
               let start = touchStartPoint else { return }
 
@@ -292,7 +293,7 @@ class GameScene: SKScene {
         updateGroundShadow(force: clamped, direction: direction)
     }
 
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+    public override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first,
               let start = touchStartPoint,
               let pen = selectedPen,
@@ -402,7 +403,7 @@ class GameScene: SKScene {
 
     // MARK: - Game Loop
 
-    override func update(_ currentTime: TimeInterval) {
+    public override func update(_ currentTime: TimeInterval) {
         guard !isRoundOver else { return }
         checkForRingOut()
         checkForTurnCompletion()
@@ -460,7 +461,7 @@ class GameScene: SKScene {
 // MARK: - Contact Delegate
 
 extension GameScene: SKPhysicsContactDelegate {
-    func didBegin(_ contact: SKPhysicsContact) {
+    public func didBegin(_ contact: SKPhysicsContact) {
         guard contact.bodyA.categoryBitMask == PhysicsCategory.pen,
               contact.bodyB.categoryBitMask == PhysicsCategory.pen else { return }
 

@@ -1,11 +1,12 @@
 //
 //  GameScene.swift
-//  Pen Fight
+//  PenFight
 //
-//  Created by Sudhanshu on 17/02/26.
+//  Created by Sudhanshu on 01/03/26.
 //
 
 import SpriteKit
+import UIKit
 
 // MARK: - Physics Categories
 struct PhysicsCategory {
@@ -45,6 +46,7 @@ struct GameConstants {
 }
 
 // MARK: - GameScene
+@MainActor
 class GameScene: SKScene {
 
     var gameState: GameState?
@@ -61,7 +63,8 @@ class GameScene: SKScene {
 
     // MARK: - Lifecycle
 
-    override func didMove(to view: SKView) {
+    nonisolated override func didMove(to view: SKView) {
+        MainActor.assumeIsolated {
         backgroundColor = .clear
         physicsWorld.gravity = .zero
         physicsWorld.contactDelegate = self
@@ -69,6 +72,7 @@ class GameScene: SKScene {
         buildTopWall()
         spawnPens()
         highlightActivePen()
+        }
     }
 
     func resetScene() {
@@ -263,7 +267,8 @@ class GameScene: SKScene {
 
     // MARK: - Touch Handling
 
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    nonisolated override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        MainActor.assumeIsolated {
         guard !isTurnLocked, !isRoundOver,
               let touch = touches.first else { return }
 
@@ -274,9 +279,11 @@ class GameScene: SKScene {
             touchStartPoint = location
             createGroundShadow(for: node)
         }
+        }
     }
 
-    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+    nonisolated override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        MainActor.assumeIsolated {
         guard let touch = touches.first,
               let start = touchStartPoint else { return }
 
@@ -290,9 +297,11 @@ class GameScene: SKScene {
         let direction = CGVector(dx: dx / distance, dy: dy / distance)
         drawChevrons(from: start, direction: direction, force: clamped)
         updateGroundShadow(force: clamped, direction: direction)
+        }
     }
 
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+    nonisolated override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        MainActor.assumeIsolated {
         guard let touch = touches.first,
               let start = touchStartPoint,
               let pen = selectedPen,
@@ -324,6 +333,7 @@ class GameScene: SKScene {
 
         cleanupDragVisuals()
         isTurnLocked = true
+        }
     }
 
     // MARK: - Drag Shadow
@@ -402,10 +412,12 @@ class GameScene: SKScene {
 
     // MARK: - Game Loop
 
-    override func update(_ currentTime: TimeInterval) {
+    nonisolated override func update(_ currentTime: TimeInterval) {
+        MainActor.assumeIsolated {
         guard !isRoundOver else { return }
         checkForRingOut()
         checkForTurnCompletion()
+        }
     }
 
     private func checkForTurnCompletion() {
@@ -460,38 +472,44 @@ class GameScene: SKScene {
 // MARK: - Contact Delegate
 
 extension GameScene: SKPhysicsContactDelegate {
-    func didBegin(_ contact: SKPhysicsContact) {
-        guard contact.bodyA.categoryBitMask == PhysicsCategory.pen,
-              contact.bodyB.categoryBitMask == PhysicsCategory.pen else { return }
+    nonisolated func didBegin(_ contact: SKPhysicsContact) {
+        let catA = contact.bodyA.categoryBitMask
+        let catB = contact.bodyB.categoryBitMask
+        let impulse = contact.collisionImpulse
+        nonisolated(unsafe) let nodeA = contact.bodyA.node
+        nonisolated(unsafe) let nodeB = contact.bodyB.node
 
-        let penA = contact.bodyA.node?.ancestorNode(withName: "pen") ?? contact.bodyA.node
-        let penB = contact.bodyB.node?.ancestorNode(withName: "pen") ?? contact.bodyB.node
+        MainActor.assumeIsolated {
+            guard catA == PhysicsCategory.pen,
+                  catB == PhysicsCategory.pen else { return }
 
-        let bump = SKAction.sequence([
-            .scale(to: 1.04, duration: 0.05),
-            .scale(to: 1.0, duration: 0.07)
-        ])
-        penA?.run(bump)
-        penB?.run(bump)
+            let penA = nodeA?.ancestorNode(withName: "pen") ?? nodeA
+            let penB = nodeB?.ancestorNode(withName: "pen") ?? nodeB
 
-        // Scale haptic intensity by collision force
-        let impactStrength = contact.collisionImpulse
-        let style: UIImpactFeedbackGenerator.FeedbackStyle
-        if impactStrength > 8 {
-            style = .heavy
-        } else if impactStrength > 3 {
-            style = .medium
-        } else {
-            style = .light
+            let bump = SKAction.sequence([
+                .scale(to: 1.04, duration: 0.05),
+                .scale(to: 1.0, duration: 0.07)
+            ])
+            penA?.run(bump)
+            penB?.run(bump)
+
+            let style: UIImpactFeedbackGenerator.FeedbackStyle
+            if impulse > 8 {
+                style = .heavy
+            } else if impulse > 3 {
+                style = .medium
+            } else {
+                style = .light
+            }
+            UIImpactFeedbackGenerator(style: style).impactOccurred()
         }
-        UIImpactFeedbackGenerator(style: style).impactOccurred()
     }
 }
 
 // MARK: - Helpers
 
 extension SKNode {
-    func ancestorNode(withName name: String) -> SKNode? {
+    @MainActor func ancestorNode(withName name: String) -> SKNode? {
         var current = self.parent
         while let node = current {
             if node.name == name { return node }
@@ -502,5 +520,5 @@ extension SKNode {
 }
 
 extension CGVector {
-    func length() -> CGFloat { sqrt(dx * dx + dy * dy) }
+    nonisolated func length() -> CGFloat { sqrt(dx * dx + dy * dy) }
 }

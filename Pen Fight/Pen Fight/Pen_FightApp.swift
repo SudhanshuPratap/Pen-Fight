@@ -4,6 +4,9 @@
 //
 //  Created by Sudhanshu on 17/02/26.
 //
+//  The application entry point. Creates a single window displaying
+//  `ContentView`, which manages navigation between the menu and game.
+//
 
 import SwiftUI
 

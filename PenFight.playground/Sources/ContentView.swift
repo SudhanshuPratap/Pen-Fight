@@ -1,21 +1,21 @@
 //
 //  ContentView.swift
-//  Pen Fight
+//  
 //
-//  Created by Sudhanshu on 17/02/26.
+//  Created by Sudhanshu on 01/03/26.
 //
-//  The app's root view. Switches between the main-menu screen and the
-//  gameplay screen with a smooth cross-fade animation.
-//
+
 
 import SwiftUI
 
-struct ContentView: View {
+public struct ContentView: View {
 
     /// Tracks whether the player has tapped "Start Game" on the menu.
     @State private var isGameStarted = false
 
-    var body: some View {
+    public init() {}
+
+    public var body: some View {
         ZStack {
             if isGameStarted {
                 // ── Active game ──
